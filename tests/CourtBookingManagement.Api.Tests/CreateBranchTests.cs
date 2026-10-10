@@ -457,8 +457,8 @@ public sealed class CreateBranchTests
                 false,
                 false)));
 
-        public Task<BranchDetailsResponse?> GetBranchDetailsAsync(Guid branchId, CancellationToken cancellationToken) =>
-            Task.FromResult<BranchDetailsResponse?>(null);
+        public Task<CourtBookingManagement.Application.Branches.DTOs.Admin.BranchAdminResponse?> GetBranchDetailsAsync(Guid branchId, CancellationToken cancellationToken) =>
+            Task.FromResult<CourtBookingManagement.Application.Branches.DTOs.Admin.BranchAdminResponse?>(null);
     }
 
     private static UpdateBranchCommandHandler CreateUpdateHandler(
