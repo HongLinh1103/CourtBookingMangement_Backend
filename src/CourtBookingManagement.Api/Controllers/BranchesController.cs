@@ -22,7 +22,7 @@ public sealed class BranchesController(
     IBranchService branchService,
     ICurrentUserService currentUserService) : ApiControllerBase
 {
-    //[Authorize(Policy = Permissions.BranchCreate)]
+    [Permission(Permissions.BranchCreate)]
     [HttpPost]
     [ProducesResponseType(typeof(ApiResponse<CreateBranchResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
@@ -67,7 +67,7 @@ public sealed class BranchesController(
         return FromResult(result, "Branch updated successfully");
     }
 
-    //[Permission(Permissions.BranchView)]
+    [Permission(Permissions.BranchView)]
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<BranchAdminResponse>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]

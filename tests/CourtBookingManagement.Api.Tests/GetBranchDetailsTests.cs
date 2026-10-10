@@ -121,6 +121,7 @@ public sealed class GetBranchDetailsTests
             "0123456789",
             "Asia/Ho_Chi_Minh",
             true,
+            true,
             [new CourtBookingManagement.Application.Branches.DTOs.Admin.BranchAmenityResponse(Guid.NewGuid(), "PARKING", "Parking", "parking")],
             [new CourtBookingManagement.Application.Branches.DTOs.Admin.BranchImageResponse("https://example.test/branch.jpg", 0)],
             [new CourtBookingManagement.Application.Branches.DTOs.Admin.BranchOperatingHourResponse(new TimeOnly(5, 30), new TimeOnly(23, 30), false)],
