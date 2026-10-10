@@ -146,7 +146,7 @@ public sealed class CloudinaryFileStorageService(
                 "Cloudinary upload failed. Category: {Category}, Message: {Message}",
                 category,
                 exception.Message);
-            throw new FileStorageException("Failed to upload file", exception);
+            throw new FileStorageException("Failed to upload image", exception);
         }
     }
 
@@ -159,7 +159,7 @@ public sealed class CloudinaryFileStorageService(
 
         if (file.Length > MaximumFileSize)
         {
-            throw ValidationError("Maximum file size is 5 MB");
+            throw ValidationError("Maximum allowed size is 5 MB");
         }
 
         var contentType = file.ContentType.Trim().ToLowerInvariant();
@@ -171,7 +171,7 @@ public sealed class CloudinaryFileStorageService(
 
         if (!isAllowedImage)
         {
-            throw ValidationError("Only JPG, JPEG, PNG, WEBP are allowed");
+            throw ValidationError("Only JPG, PNG and WEBP are allowed");
         }
     }
 
@@ -180,7 +180,7 @@ public sealed class CloudinaryFileStorageService(
         "image/jpeg" or "image/jpg" => ".jpg",
         "image/png" => ".png",
         "image/webp" => ".webp",
-        _ => throw ValidationError("Only JPG, JPEG, PNG, WEBP are allowed")
+        _ => throw ValidationError("Only JPG, PNG and WEBP are allowed")
     };
 
     private static ValidationException ValidationError(string message) =>
