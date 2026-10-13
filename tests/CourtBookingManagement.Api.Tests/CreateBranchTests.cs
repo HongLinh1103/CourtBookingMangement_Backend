@@ -495,6 +495,11 @@ public sealed class CreateBranchTests
         public Task<Guid?> GetOwnerIdForUserAsync(Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult<Guid?>(userId == UserId ? ownerId : null);
 
+        public Task<IReadOnlyList<BranchLookupResponse>> GetBranchesByOwnerAsync(
+    Guid ownerId,
+    CancellationToken cancellationToken) =>
+    Task.FromResult<IReadOnlyList<BranchLookupResponse>>([]);
+
         public Task<bool> ExistsAsync(Guid requestedOwnerId, string name, CancellationToken cancellationToken) =>
             Task.FromResult(BranchExists);
 
@@ -597,6 +602,10 @@ public sealed class CreateBranchTests
 
     private sealed class StubBranchService(CreateBranchResponse response) : IBranchService
     {
+        public Task<IReadOnlyList<BranchLookupResponse>> GetMyBranchesAsync(
+    Guid userId,
+    CancellationToken cancellationToken) =>
+    Task.FromResult<IReadOnlyList<BranchLookupResponse>>([]);
         public Task<BranchAdminSearchResult> SearchAsync(
             BranchAdminSearchRequest request,
             CancellationToken cancellationToken) =>

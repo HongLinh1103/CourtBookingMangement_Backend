@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 using BranchAdminSearchResult = CourtBookingManagement.Application.Branches.DTOs.Admin.BranchAdminSearchResult;
+using BranchLookupResponse = CourtBookingManagement.Application.Branches.DTOs.BranchLookupResponse;
 
 namespace CourtBookingManagement.Api.Tests;
 
@@ -181,6 +182,10 @@ public sealed class GetBranchDetailsTests
 
     private sealed class StubBranchService(BranchAdminSearchResult response) : IBranchService
     {
+        public Task<IReadOnlyList<BranchLookupResponse>> GetMyBranchesAsync(
+    Guid userId,
+    CancellationToken cancellationToken) =>
+    Task.FromResult<IReadOnlyList<BranchLookupResponse>>([]);
         public Task<BranchAdminSearchResult> SearchAsync(BranchAdminSearchRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(response);
 
