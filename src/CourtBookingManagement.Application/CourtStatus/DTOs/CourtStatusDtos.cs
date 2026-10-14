@@ -56,22 +56,27 @@ public sealed record BranchAmenityDto(Guid Id, string Code, string Name);
 public sealed record BranchPriceRangeDto(decimal? Min, decimal? Max, string Currency);
 public sealed record BranchOperatingHoursDto(string Open, string Close, string DaysDescription);
 
-public sealed record CourtDto(Guid CourtId, string CourtNumber, string CourtName, string Status);
+public sealed record CourtDto(Guid CourtId, int CourtNumber, string CourtName, string Status);
 
 public sealed record ScheduleItemDto(
-    Guid BookingId, 
+    Guid BookingId,
     Guid CourtId,
+    int courtNumber,
+    string courtName,
     TimeOnly StartTime,
     TimeOnly EndTime,
     DateOnly BookingDate,
-    string? BookingType, 
+    string? BookingType,
     string? BookingStatus,
-    string? PaymentStatus, 
+    string? PaymentStatus,
     string? CustomerName,
     string? PhoneNumber,
-    string Title, 
+    string Title,
     string Color
-);
+)
+{
+
+};
 
 public sealed record CourtStatusResponse(
     Guid BranchId, 
@@ -86,8 +91,8 @@ public sealed record CourtStatusResponse(
 public sealed record BookingDetailResponse(
     Guid BookingId, string BookingCode, string CourtName, string CustomerName, string PhoneNumber,
     DateOnly BookingDate, TimeOnly StartTime, TimeOnly EndTime, string BookingType,
-    string BookingStatus, string PaymentStatus, decimal TotalAmount, decimal PaidAmount,
-    decimal RemainingAmount);
+    string PaymentMethod, string BookingStatus, string PaymentStatus, decimal TotalAmount, decimal PaidAmount,
+    decimal RemainingAmount, string Notes);
 
 public sealed record CreateBookingRequest(
     Guid BranchId, Guid CourtId, Guid CustomerId, DateOnly BookingDate, TimeOnly StartTime,

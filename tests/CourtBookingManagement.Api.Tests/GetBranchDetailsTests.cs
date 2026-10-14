@@ -2,8 +2,8 @@ using System.Net;
 using System.Text.Json;
 using CourtBookingManagement.Api.Common.Responses;
 using CourtBookingManagement.Api.Controllers;
-using CourtBookingManagement.Application.Amenities.Models.Responses;
-using CourtBookingManagement.Application.Branches.DTOs;
+
+using CourtBookingManagement.Application.Branches.DTOs.Admin;
 using CourtBookingManagement.Application.Branches.DTOs.Requests;
 using CourtBookingManagement.Application.Branches.GetBranchDetails;
 using CourtBookingManagement.Application.Branches.Interfaces;
@@ -20,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 using BranchAdminSearchResult = CourtBookingManagement.Application.Branches.DTOs.Admin.BranchAdminSearchResult;
+using BranchLookupResponse = CourtBookingManagement.Application.Branches.DTOs.BranchLookupResponse;
 
 namespace CourtBookingManagement.Api.Tests;
 
@@ -36,11 +37,11 @@ public sealed class GetBranchDetailsTests
         Assert.True(result.IsSuccess);
         Assert.Equal(expected.Id, result.Value.Id);
         Assert.Single(result.Value.Images);
-        Assert.Single(result.Value.Amenities);
+        Assert.Single(result.Value.BranchAmenities);
         Assert.Single(result.Value.Courts);
         Assert.Single(result.Value.OperatingHours);
-        Assert.Single(result.Value.Pricings);
-        Assert.Equal(1, result.Value.Statistics.TotalCourts);
+        Assert.Single(result.Value.BranchPricings);
+        Assert.Equal(expected, result.Value);
     }
 
     [Fact]
@@ -52,7 +53,7 @@ public sealed class GetBranchDetailsTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("Branch.NotFound", result.Error.Code);
-        Assert.Equal("Branch not found.", result.Error.Description);
+        Assert.Equal("Branch not found", result.Error.Description);
     }
 
     [Fact]
@@ -95,15 +96,15 @@ public sealed class GetBranchDetailsTests
         using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = payload.RootElement;
         Assert.True(root.GetProperty("success").GetBoolean());
-        Assert.Equal("Branch details retrieved successfully.", root.GetProperty("message").GetString());
+        Assert.Equal("Success", root.GetProperty("message").GetString());
 
         var data = root.GetProperty("data");
         Assert.Equal(details.Id, data.GetProperty("id").GetGuid());
         Assert.Single(data.GetProperty("images").EnumerateArray());
-        Assert.Single(data.GetProperty("amenities").EnumerateArray());
+        Assert.Single(data.GetProperty("branchAmenities").EnumerateArray());
         Assert.Single(data.GetProperty("courts").EnumerateArray());
         Assert.Single(data.GetProperty("operatingHours").EnumerateArray());
-        Assert.Single(data.GetProperty("pricings").EnumerateArray());
+        Assert.Single(data.GetProperty("branchPricings").EnumerateArray());
     }
 
     [Fact]
@@ -144,7 +145,7 @@ public sealed class GetBranchDetailsTests
 
         using var payload = JsonDocument.Parse(JsonSerializer.Serialize(response, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         var item = payload.RootElement.GetProperty("data")[0];
-        Assert.Single(item.GetProperty("amenityIds").EnumerateArray());
+        Assert.Single(item.GetProperty("branchAmenities").EnumerateArray());
         Assert.Single(item.GetProperty("images").EnumerateArray());
         Assert.Single(item.GetProperty("operatingHours").EnumerateArray());
         Assert.Single(item.GetProperty("courts").EnumerateArray());
@@ -152,29 +153,17 @@ public sealed class GetBranchDetailsTests
         Assert.Equal(1, payload.RootElement.GetProperty("metadata").GetProperty("pageNumber").GetInt32());
     }
 
-    private static BranchDetailsResponse CreateBranchDetails() => new()
-    {
-        Id = Guid.NewGuid(),
-        OwnerId = Guid.NewGuid(),
-        Name = "Central Badminton",
-        Address = "1 Court Street",
-        City = "Central",
-        District = "District 1",
-        Latitude = 10.123456m,
-        Longitude = 106.123456m,
-        PhoneNumber = "0123456789",
-        IsActive = true,
-        TimeZone = "Asia/Ho_Chi_Minh",
-        SupportsInstantBooking = true,
-        Images = [new BranchImageResponse { Id = Guid.NewGuid(), ImageUrl = "https://example.test/branch.jpg", SortOrder = 1 }],
-        Amenities = [new AmenityResponse { Id = Guid.NewGuid(), Code = "PARKING", Name = "Parking", Icon = "parking" }],
-        Courts = [new CourtResponse { Id = Guid.NewGuid(), CourtNumber = 1, Name = "Court 1", Status = "active" }],
-        OperatingHours = [new OperatingHourResponse { Id = Guid.NewGuid(), OpenTime = TimeSpan.FromHours(6), CloseTime = TimeSpan.FromHours(22) }],
-        Pricings = [new BranchPricingResponse { Id = Guid.NewGuid(), PricingType = "standard", StartTime = TimeSpan.FromHours(6), EndTime = TimeSpan.FromHours(22), PricePerHour = 100000m }],
-        Statistics = new BranchStatisticsResponse { TotalCourts = 1, TotalAmenities = 1, TotalImages = 1, MinPrice = 100000m, MaxPrice = 100000m }
-    };
+    private static BranchAdminResponse CreateBranchDetails() => new(
+        Guid.NewGuid(), "Central Badminton", "Indoor courts", "1 Court Street",
+        "Central", "District 1", 10.123456m, 106.123456m, "0123456789",
+        "Asia/Ho_Chi_Minh", true, true,
+        [new BranchAmenityResponse(Guid.NewGuid(), "PARKING", "Parking", "parking")],
+        [new BranchImageResponse("https://example.test/branch.jpg", 1)],
+        [new BranchOperatingHourResponse(new TimeOnly(6, 0), new TimeOnly(22, 0), false)],
+        [new BranchCourtResponse(1, "Court 1", true)],
+        [new BranchPricingResponse("standard", new TimeOnly(6, 0), new TimeOnly(22, 0), 100000m)]);
 
-    private sealed class StubBranchQueryRepository(BranchDetailsResponse? response) : IBranchQueryRepository
+    private sealed class StubBranchQueryRepository(BranchAdminResponse? response) : IBranchQueryRepository
     {
         public Task<BranchAdminSearchResult> SearchBranchesAsync(
             BranchAdminSearchRequest request,
@@ -187,12 +176,16 @@ public sealed class GetBranchDetailsTests
                 false,
                 false)));
 
-        public Task<BranchDetailsResponse?> GetBranchDetailsAsync(Guid branchId, CancellationToken cancellationToken) =>
+        public Task<BranchAdminResponse?> GetBranchDetailsAsync(Guid branchId, CancellationToken cancellationToken) =>
             Task.FromResult(response?.Id == branchId ? response : null);
     }
 
     private sealed class StubBranchService(BranchAdminSearchResult response) : IBranchService
     {
+        public Task<IReadOnlyList<BranchLookupResponse>> GetMyBranchesAsync(
+    Guid userId,
+    CancellationToken cancellationToken) =>
+    Task.FromResult<IReadOnlyList<BranchLookupResponse>>([]);
         public Task<BranchAdminSearchResult> SearchAsync(BranchAdminSearchRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(response);
 

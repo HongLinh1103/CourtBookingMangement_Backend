@@ -2,6 +2,7 @@ using CourtBookingManagement.Api.Common.Middleware;
 using CourtBookingManagement.Api.Common.Responses;
 using CourtBookingManagement.Api.Common.Constants;
 using CourtBookingManagement.Api.Files;
+using CourtBookingManagement.Api.Swagger;
 using CourtBookingManagement.Application;
 using CourtBookingManagement.Application.Options;
 using CourtBookingManagement.Infrastructure;
@@ -49,6 +50,12 @@ builder.Services.AddControllers()
                 errors));
         };
     });
+var bookingOptions = builder.Configuration.GetSection(BookingOptions.SectionName).Get<BookingOptions>() ?? new BookingOptions();
+System.ComponentModel.DataAnnotations.Validator.ValidateObject(
+    bookingOptions,
+    new System.ComponentModel.DataAnnotations.ValidationContext(bookingOptions),
+    validateAllProperties: true);
+builder.Services.AddSingleton(bookingOptions);
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddCors(options =>
@@ -68,7 +75,9 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSwaggerGen(options =>
 {
+    options.SchemaFilter<BookingEnumSchemaFilter>();
     options.OperationFilter<UploadFileExamplesOperationFilter>();
+    options.OperationFilter<AdminBranchesExamplesOperationFilter>();
     options.CustomSchemaIds(GetSwaggerSchemaId);
 
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme

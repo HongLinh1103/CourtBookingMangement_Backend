@@ -263,7 +263,7 @@ public sealed class CourtStatusRepository(ApplicationDbContext db, ISqlConnectio
             .Select(group =>
             {
                 var row = group.First();
-                return new CourtDto(row.CourtId, row.CourtNumber!, row.CourtName ?? row.CourtNumber!, row.CourtStatus!);
+                return new CourtDto(row.CourtId, row.CourtNumber!, row.CourtName ?? row.CourtNumber.ToString(), row.CourtStatus!);
             })
             .ToList();
 
@@ -272,6 +272,8 @@ public sealed class CourtStatusRepository(ApplicationDbContext db, ISqlConnectio
             .Select(x => new ScheduleItemDto(
                 x.BookingId!.Value,
                 x.CourtId,
+                x.CourtNumber,
+                x.CourtName,
                 x.StartTime!.Value,
                 x.EndTime!.Value,
                 x.BookingDate!.Value,
@@ -281,7 +283,10 @@ public sealed class CourtStatusRepository(ApplicationDbContext db, ISqlConnectio
                 x.CustomerName,
                 x.PhoneNumber,
                 x.Title!,
-                x.Color!))
+                BookingColor(x.BookingStatus, x.Color))
+            {
+
+            })
             .OrderBy(x => x.StartTime)
             .ToList();
 
@@ -290,7 +295,7 @@ public sealed class CourtStatusRepository(ApplicationDbContext db, ISqlConnectio
 
     public async Task<BookingDetailResponse?> GetBookingAsync(Guid id, CancellationToken ct) =>
         await db.BookingDetails.AsNoTracking().Where(x => x.BookingId == id && x.Booking.IsActive)
-            .Select(x => new BookingDetailResponse(x.BookingId, x.Booking.BookingCode, x.Court.Name ?? x.Court.CourtNumber.ToString(), x.Booking.Customer.FullName, x.Booking.Customer.PhoneNumber, x.BookingDate, x.StartTime, x.EndTime, x.Booking.BookingType, x.Booking.Status, "UNPAID", x.Booking.TotalAmount, 0, x.Booking.TotalAmount)).SingleOrDefaultAsync(ct);
+            .Select(x => new BookingDetailResponse(x.BookingId, x.Booking.BookingCode, x.Court.Name ?? x.Court.CourtNumber.ToString(), x.Booking.Customer.FullName, x.Booking.Customer.PhoneNumber, x.BookingDate, x.StartTime, x.EndTime, x.Booking.BookingType, x.Booking.PaymentMethod, x.Booking.Status, "UNPAID", x.Booking.TotalAmount, 0, x.Booking.TotalAmount, x.Booking.Notes)).SingleOrDefaultAsync(ct);
 
     public Task<Guid?> GetBookingBranchIdAsync(Guid id, CancellationToken ct) =>
         db.Bookings.AsNoTracking().Where(x => x.Id == id && x.IsActive).Select(x => (Guid?)x.BranchId).SingleOrDefaultAsync(ct);
@@ -302,11 +307,18 @@ public sealed class CourtStatusRepository(ApplicationDbContext db, ISqlConnectio
     public async Task<bool> IsWithinOperatingHoursAsync(Guid branchId, DateOnly date, TimeOnly start, TimeOnly end, CancellationToken ct) { var h = await db.OperatingHours.AsNoTracking().SingleOrDefaultAsync(x => x.BranchId == branchId, ct); return h != null && !h.IsClosed && start >= h.OpenTime && end <= h.CloseTime; }
 
     public async Task<Guid> CreateBookingAsync(Guid branchId, Guid courtId, Guid customerId, DateOnly date, TimeOnly start, TimeOnly end, string type, string? note, CancellationToken ct)
-    { var id = Guid.NewGuid(); db.Bookings.Add(new Booking { Id = id, BookingCode = $"BK{DateTime.UtcNow:yyyyMMddHHmmss}", BranchId = branchId, CustomerId = customerId, Status = "pending", BookingType = type.ToUpperInvariant(), Notes = note, IsActive = true, TotalAmount = 0, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }); db.BookingDetails.Add(new BookingDetail { Id = Guid.NewGuid(), BookingId = id, CourtId = courtId, BookingDate = date, StartTime = start, EndTime = end, Status = "reserved", PriceCharged = 0, SlotRange = new NpgsqlTypes.NpgsqlRange<DateTime>(date.ToDateTime(start), true, date.ToDateTime(end), false) }); await db.SaveChangesAsync(ct); return id; }
-    public async Task UpdateBookingAsync(Guid id, Guid courtId, DateOnly date, TimeOnly start, TimeOnly end, string type, string? note, CancellationToken ct) { var booking = await db.Bookings.SingleAsync(x => x.Id == id && x.IsActive, ct); var detail = await db.BookingDetails.SingleAsync(x => x.BookingId == id, ct); booking.BookingType = type.ToUpperInvariant(); booking.Notes = note; detail.CourtId = courtId; detail.BookingDate = date; detail.StartTime = start; detail.EndTime = end; detail.SlotRange = new NpgsqlTypes.NpgsqlRange<DateTime>(date.ToDateTime(start), true, date.ToDateTime(end), false); await db.SaveChangesAsync(ct); }
+    { var id = Guid.NewGuid(); db.Bookings.Add(new Booking { Id = id, BookingCode = $"BK{DateTime.UtcNow:yyyyMMddHHmmss}", BranchId = branchId, CustomerId = customerId, Status = "pending", BookingType = type, Notes = note, IsActive = true, TotalAmount = 0, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }); db.BookingDetails.Add(new BookingDetail { Id = Guid.NewGuid(), BookingId = id, CourtId = courtId, BookingDate = date, StartTime = start, EndTime = end, Status = "reserved", PriceCharged = 0, SlotRange = new NpgsqlTypes.NpgsqlRange<DateTime>(date.ToDateTime(start), true, date.ToDateTime(end), false) }); await db.SaveChangesAsync(ct); return id; }
+    public async Task UpdateBookingAsync(Guid id, Guid courtId, DateOnly date, TimeOnly start, TimeOnly end, string type, string? note, CancellationToken ct) { var booking = await db.Bookings.SingleAsync(x => x.Id == id && x.IsActive, ct); var detail = await db.BookingDetails.SingleAsync(x => x.BookingId == id, ct); booking.BookingType = type; booking.Notes = note; detail.CourtId = courtId; detail.BookingDate = date; detail.StartTime = start; detail.EndTime = end; detail.SlotRange = new NpgsqlTypes.NpgsqlRange<DateTime>(date.ToDateTime(start), true, date.ToDateTime(end), false); await db.SaveChangesAsync(ct); }
     public async Task CancelBookingAsync(Guid id, CancellationToken ct) { var booking = await db.Bookings.SingleAsync(x => x.Id == id && x.IsActive, ct); booking.IsActive = false; booking.Status = "cancelled"; booking.DeletedAt = DateTime.UtcNow; await db.SaveChangesAsync(ct); }
 
-    private static string BookingColor(string type) => type.ToUpperInvariant() switch { "FIXED" => "#35A8DB", "DAILY" => "#31D37D", "FLEXIBLE" => "#E2B93B", _ => "#31D37D" };
+    private static string BookingColor(string? status, string? fallback) => status?.ToUpperInvariant() switch
+    {
+        "PENDING" => "#F59E0B",
+        "CONFIRMED" => "#22C55E",
+        "COMPLETED" => "#3B82F6",
+        "CANCELLED" => "#EF4444",
+        _ => fallback ?? "#22C55E"
+    };
 
     public sealed class CourtStatusRow
     {
@@ -320,7 +332,7 @@ public sealed class CourtStatusRepository(ApplicationDbContext db, ISqlConnectio
 
         public Guid CourtId { get; set; }
 
-        public string CourtNumber { get; set; } = string.Empty;
+        public int CourtNumber { get; set; }
 
         public string CourtName { get; set; } = string.Empty;
 
